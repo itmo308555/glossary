@@ -1,0 +1,79 @@
+version: '3.1'
+
+services:
+  www:
+    build:
+      context: './www/'
+      args:
+        PHP_VERSION: php:8.0-apache
+    container_name: www
+    ports:
+      - 8001:80
+    volumes:
+      - ${PROJECT_ROOT}/:/var/www/html/
+    links:
+      - db
+    networks:
+      - default
+  apache:
+    build:
+      context: './apache/'
+      args:
+       APACHE_VERSION: 2.4.52
+    depends_on:
+      - www
+      - db
+    links:
+      - db
+    networks:
+     - default
+    ports:
+      - "8080:80"
+    volumes:
+      - ./www/:/var/www/html/
+    container_name: apache
+
+  db:
+    image: mysql:${MYSQL_VERSION}
+    container_name: DataBaseServer
+    command: --default-authentication-plugin=mysql_native_password
+    ports: 
+      - "3306:3306"
+    restart: always
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      MYSQL_ROOT_PASSWORD: "${DB_ROOT_PASSWORD}"
+      MYSQL_DATABASE: "${DB_NAME}"
+      MYSQL_USERNAME: "${DB_USERNAME}"
+      MYSQL_PASSWORD: "${DB_PASSWORD}"
+     
+    volumes:
+      - ./dump:/docker-entrypoint-initdb.d
+      - persistent:/var/lib/mysql
+    networks:
+      - default
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin
+    depends_on:
+      - db
+    links:
+      - db
+    ports:
+      - 8081:80
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306    
+      MYSQL_USERNAME: "${DB_USERNAME}"
+      MYSQL_ROOT_PASSWORD: "${DB_ROOT_PASSWORD}"   
+    restart: always
+    volumes:
+      - /sessions
+    networks:
+      - default
+networks:
+  default:
+volumes:
+  persistent:
